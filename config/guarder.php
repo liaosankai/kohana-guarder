@@ -3,39 +3,23 @@
 defined('SYSPATH') or die('No direct script access.');
 
 return array(
+    'autoload' => TRUE,
     // 定義角色
     'roles' => array(
-        'user' => array(
-            // {method}://{directory}/{controller}/{action}
+        'login' => array(
             'allow' => array(
-                '',
-                '*', // => '*://*/*/*',
-                '://',
-                '*://*/*/*',
-                '*://*/*/zzz',
-                '*://*/yyy/zzz',
-                '*://xxx/yyy/zzz',
-                '*://xxx/yyy/*',
-                '*://xxx/*/zzz',
-                '*://*/yyy/zzz',
-                'xxx', // => *://xxx/*/*
-                'yyy/zzz', // => *://*/yyy/zzz
-                'xxx/yyy/zzz', // => *://xxx/yyy/zzz
-                'yyy/*', // => *://*/yyy/*
-                'GET://yyy/*'          // => GET://*/yyy/*
+                'api/news/*',
+            //   'api/*/*'
             ),
             'deny' => array(
-                'forum/thread/edit'
+                //  'get://api/room/index',
+                'post://api/news/*',
+                'put://api/news/*',
+                'get://api/news/index'
             )
         ),
         'admin' => array(
-            'allow' => array(
-                'get://forum',
-                'get://forum/thread'
-            ),
-            'deny' => array(
-                'forum/thread/edit'
-            )
+            '*'
         )
     ),
     // 定義資源

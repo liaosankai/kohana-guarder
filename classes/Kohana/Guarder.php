@@ -191,7 +191,7 @@ class Kohana_Guarder {
     private function _is_match(array $list = array())
     {
         $m = $this->_request->method();
-        $d = ($this->_request->directory() === "") ? TRUE : $this->_request->directory();
+        $d = ($this->_request->directory() === "") ? 'default' : $this->_request->directory();
         $c = $this->_request->controller();
         $a = $this->_request->action();
         // 禁止的檢查器
@@ -246,7 +246,7 @@ class Kohana_Guarder {
                 $action = Arr::get($path_fragment, 1, FALSE);
                 break;
             case 3:
-                $directory = Arr::get($path_fragment, 0, '*');
+                $directory = Arr::get($path_fragment, 0, 'default');
                 $controller = Arr::get($path_fragment, 1, FALSE);
                 $action = Arr::get($path_fragment, 2, FALSE);
                 break;

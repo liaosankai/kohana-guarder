@@ -17,6 +17,13 @@ class Kohana_Guarder {
     const WILDCARD = '*';
 
     /**
+     * 表示支援 POST 和 GET 的 method
+     * 
+     * @var string
+     */
+    const ACTION = 'action';
+
+    /**
      * 衛兵類別實例
      * 
      * @var Guarder
@@ -78,9 +85,6 @@ class Kohana_Guarder {
      */
     public function __construct(array $config = array())
     {
-        // Create root resource
-        $this->_resources = new Deputy_Resource;
-
         // 讀取設定檔
         $this->_config = Arr::merge(Kohana::$config->load('guarder')->as_array(), $config);
 
@@ -99,21 +103,23 @@ class Kohana_Guarder {
      */
     public function is_pass($target = array())
     {
+        // 取得欲檢查的角色
+        $roles = array();
         if ($target instanceof Model_User) {
-            foreach ($target->roles()->find_all() as $role) {
+            foreach ($target->roles->find_all() as $role) {
                 $roles[] = $role->name;
             }
         } else {
-            $roles = (gettype($target) === 'string') ? array($target) : $target;
+            $roles = (gettype($target) === 'array') ? $target : array($target);
         }
-        $roles = is_array($roles) ? $roles : array();
+        // 記錄各角色的 pass 狀態
         $roles_pass = array();
         foreach (array_unique($roles) as $name) {
             // 取得角色權限表
             $authorities = Arr::get($this->_roles, $name, array());
-            // 允許的
+            // 允許的狀態
             $allow_pass = $this->_is_match(Arr::get($authorities, 'allow', array()));
-            // 禁止的
+            // 禁止的狀態
             $deny_pass = $this->_is_match(Arr::get($authorities, 'deny', array()));
             // 記錄各角色的執行權限
             $roles_pass[$name] = ($allow_pass === TRUE AND $deny_pass === FALSE);
@@ -194,18 +200,29 @@ class Kohana_Guarder {
         $d = ($this->_request->directory() === "") ? 'default' : $this->_request->directory();
         $c = $this->_request->controller();
         $a = $this->_request->action();
-        // 禁止的檢查器
+        // 檢查器
         $checker = array();
         $match = FALSE;
         foreach ($list as $uri) {
             $authority = $this->_parse_uri($uri);
-            // 檢查禁止的 method 部分
-            $checker['method'] = (Arr::get($authority, 'method') === TRUE) ? TRUE : !strcasecmp($m, Arr::get($authority, 'method'));
-            // 檢查禁止的 directory 部分
+            // 檢查 method 部分
+            $am = strtolower(Arr::get($authority, 'method'));
+            switch ($am) {
+                case TRUE:
+                    $checker['method'] = TRUE;
+                    break;
+                case Guarder::ACTION:
+                    $checker['method'] = in_array($m, array(Request::POST, Request::GET));
+                    break;
+                default:
+                    $checker['method'] = !strcasecmp($m, $am);
+                    break;
+            }
+            // 檢查 directory 部分
             $checker['directory'] = (Arr::get($authority, 'directory') === TRUE) ? TRUE : !strcasecmp($d, Arr::get($authority, 'directory'));
-            // 檢查禁止的 controller 部分;
+            // 檢查 controller 部分;
             $checker['controller'] = (Arr::get($authority, 'controller') === TRUE) ? TRUE : !strcasecmp($c, Arr::get($authority, 'controller'));
-            // 檢查禁止的 action 部分
+            // 檢查 action 部分
             $checker['action'] = (Arr::get($authority, 'action') === TRUE) ? TRUE : !strcasecmp($a, Arr::get($authority, 'action'));
             // 取得結果( 要全為 TRUE )
             $match = (count(array_unique($checker)) === 1) ? current($checker) : FALSE;
@@ -228,8 +245,8 @@ class Kohana_Guarder {
         $url = ltrim(rtrim(trim($uri), '/'), '://');
         // 剖析路徑
         $parse_url = parse_url($url);
-        // 取得 method 部分
-        $method = strtoupper(Arr::get($parse_url, 'scheme', Guarder::WILDCARD));
+        // 取得 method 部分，若沒設定，使用 Guarder::ACTION 為預設
+        $method = strtoupper(Arr::get($parse_url, 'scheme', Guarder::ACTION));
         // 重組 path 部分 (取得 :// 後面的字串)
         $path = (stripos($url, '://') === FALSE) ? $url : substr($url, stripos($url, '://') + 3);
         $path_fragment = array_filter(explode("/", $path));

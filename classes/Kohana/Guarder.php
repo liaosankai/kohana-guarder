@@ -7,7 +7,8 @@ defined('SYSPATH') or die('No direct script access.');
  * 
  * 用來檢查指定角色是否有請求控制器動作的權限
  */
-class Kohana_Guarder {
+class Kohana_Guarder
+{
 
     /**
      * 萬用字元符號常數
@@ -103,14 +104,14 @@ class Kohana_Guarder {
      */
     public function is_pass($target = array())
     {
-        // 取得欲檢查的角色
-        $roles = array();
+        // 取得欲檢查的角色(預設都會有一個 guest 的角色)
+        $roles = array('guest');
         if ($target instanceof Model_User) {
             foreach ($target->roles->find_all() as $role) {
                 $roles[] = $role->name;
             }
         } else {
-            $roles = (gettype($target) === 'array') ? $target : array($target);
+            $roles = (gettype($target) === 'array') ? array_merge($roles, $target) : array_merge($roles, array($target));
         }
         // 記錄各角色的 pass 狀態
         $roles_pass = array();

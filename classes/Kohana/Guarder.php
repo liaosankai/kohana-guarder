@@ -22,7 +22,14 @@ class Kohana_Guarder
      * 
      * @var string
      */
-    const ACTION = 'action';
+    const ACTION_METHOD = 'ACTION';
+
+    /**
+     * 表示所有 method
+     * 
+     * @var string
+     */
+    const ALL_METHOD = 'ALL';
 
     /**
      * 衛兵類別實例
@@ -113,6 +120,7 @@ class Kohana_Guarder
         } else {
             $roles = (gettype($target) === 'array') ? array_merge($roles, $target) : array_merge($roles, array($target));
         }
+
         // 記錄各角色的 pass 狀態
         $roles_pass = array();
         foreach (array_unique($roles) as $name) {
@@ -206,13 +214,15 @@ class Kohana_Guarder
         $match = FALSE;
         foreach ($list as $uri) {
             $authority = $this->_parse_uri($uri);
+
             // 檢查 method 部分
-            $am = strtolower(Arr::get($authority, 'method'));
+            $am = Arr::get($authority, 'method');
+
             switch ($am) {
-                case TRUE:
+                case Guarder::ALL_METHOD:
                     $checker['method'] = TRUE;
                     break;
-                case Guarder::ACTION:
+                case Guarder::ACTION_METHOD:
                     $checker['method'] = in_array($m, array(Request::POST, Request::GET));
                     break;
                 default:
@@ -246,8 +256,10 @@ class Kohana_Guarder
         $url = ltrim(rtrim(trim($uri), '/'), '://');
         // 剖析路徑
         $parse_url = parse_url($url);
+
         // 取得 method 部分，若沒設定，使用 Guarder::ACTION 為預設
-        $method = strtoupper(Arr::get($parse_url, 'scheme', Guarder::ACTION));
+        $method = strtoupper(Arr::get($parse_url, 'scheme', Guarder::ACTION_METHOD));
+
         // 重組 path 部分 (取得 :// 後面的字串)
         $path = (stripos($url, '://') === FALSE) ? $url : substr($url, stripos($url, '://') + 3);
         $path_fragment = array_filter(explode("/", $path));
@@ -277,7 +289,7 @@ class Kohana_Guarder
             return array(
                 // 'uri' => $uri,
                 // 'map' => "{$method}://{$directory}/{$controller}/{$action}",
-                'method' => ($method === Guarder::WILDCARD) ? TRUE : $method,
+                'method' => ($method === Guarder::WILDCARD) ? Guarder::ALL_METHOD : $method,
                 'directory' => ($directory === Guarder::WILDCARD) ? TRUE : $directory,
                 'controller' => ($controller === Guarder::WILDCARD) ? TRUE : $controller,
                 'action' => ($action === Guarder::WILDCARD) ? TRUE : $action,

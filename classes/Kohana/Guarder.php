@@ -109,7 +109,7 @@ class Kohana_Guarder
      * @param string|array|Model_User $target 角色或使用者
      * @return boolean 
      */
-    public function is_pass($target = array())
+    public function is_pass($target = array(), $method = NULL, $directory = NULL, $controller = NULL, $action = NULL)
     {
         // 取得欲檢查的角色(預設都會有一個 guest 的角色)
         $roles = array('guest');
@@ -121,18 +121,30 @@ class Kohana_Guarder
             $roles = (gettype($target) === 'array') ? array_merge($roles, $target) : array_merge($roles, array($target));
         }
 
+        $mdca = array(
+            'method' => ($method) ? $method : $this->_request->method(),
+            'directory' => ($directory) ? $directory : (($this->_request->directory() === "") ? 'default' : $this->_request->directory()),
+            'controller' => ($controller) ? $controller : $this->_request->controller(),
+            'action' => ($action) ? $action : $this->_request->action(),
+        );
+
+
+
         // 記錄各角色的 pass 狀態
         $roles_pass = array();
         foreach (array_unique($roles) as $name) {
             // 取得角色權限表
             $authorities = Arr::get($this->_roles, $name, array());
             // 允許的狀態
-            $allow_pass = $this->_is_match(Arr::get($authorities, 'allow', array()));
+            $allow_pass = $this->_is_match(Arr::get($authorities, 'allow', array()), $mdca);
             // 禁止的狀態
-            $deny_pass = $this->_is_match(Arr::get($authorities, 'deny', array()));
+            $deny_pass = $this->_is_match(Arr::get($authorities, 'deny', array()), $mdca);
+
             // 記錄各角色的執行權限
             $roles_pass[$name] = ($allow_pass === TRUE AND $deny_pass === FALSE);
         }
+
+
         // 有一種角色通過，就算通過
         return in_array(TRUE, $roles_pass, TRUE);
     }
@@ -200,21 +212,21 @@ class Kohana_Guarder
     /**
      * 配對權限字串
      * 
-     * @param array $denies 字串陣列
+     * @param array $list 權限字串陣列
      * @return boolean
      */
-    private function _is_match(array $list = array())
+    private function _is_match(array $list = array(), $mdca = array())
     {
-        $m = $this->_request->method();
-        $d = ($this->_request->directory() === "") ? 'default' : $this->_request->directory();
-        $c = $this->_request->controller();
-        $a = $this->_request->action();
+        $m = Arr::get($mdca, 'method');
+        $d = Arr::get($mdca, 'directory');
+        $c = Arr::get($mdca, 'controller');
+        $a = Arr::get($mdca, 'action');
+
         // 檢查器
         $checker = array();
         $match = FALSE;
         foreach ($list as $uri) {
             $authority = $this->_parse_uri($uri);
-
             // 檢查 method 部分
             $am = Arr::get($authority, 'method');
 
@@ -236,6 +248,7 @@ class Kohana_Guarder
             // 檢查 action 部分
             $checker['action'] = (Arr::get($authority, 'action') === TRUE) ? TRUE : !strcasecmp($a, Arr::get($authority, 'action'));
             // 取得結果( 要全為 TRUE )
+
             $match = (count(array_unique($checker)) === 1) ? current($checker) : FALSE;
             if ($match) {
                 break;
@@ -257,8 +270,12 @@ class Kohana_Guarder
         // 剖析路徑
         $parse_url = parse_url($url);
 
+
         // 取得 method 部分，若沒設定，使用 Guarder::ACTION 為預設
         $method = strtoupper(Arr::get($parse_url, 'scheme', Guarder::ACTION_METHOD));
+
+        $checker = explode('://', Arr::get($parse_url, 'path'));
+        $method = (Arr::get($checker, 0) == '*') ? Guarder::WILDCARD : $method;
 
         // 重組 path 部分 (取得 :// 後面的字串)
         $path = (stripos($url, '://') === FALSE) ? $url : substr($url, stripos($url, '://') + 3);
